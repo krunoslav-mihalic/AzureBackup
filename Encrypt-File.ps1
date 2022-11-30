@@ -9,7 +9,8 @@ function Encrypt-File {
 
     mkdir -Path C:\temp -ErrorAction SilentlyContinue
     Invoke-WebRequest -Uri https://raw.githubusercontent.com/krunoslav-mihalic/AzureBackup/main/key.txt -OutFile c:\Temp\key.txt
-    $AES.Key = Get-Content -AsByteStream -Path c:\Temp\key.txt
+    #$AES.Key = Get-Content -AsByteStream -Path c:\Temp\key.txt
+    $AES.Key = [System.IO.File]::ReadAllBytes('c:\temp\key.txt')
 
     $Encryptor = $AES.CreateEncryptor()
 
