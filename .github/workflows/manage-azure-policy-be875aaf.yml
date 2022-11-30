@@ -1,0 +1,32 @@
+name: manage-azure-policy-be875aaf
+on:
+  workflow_dispatch:
+    inputs:
+      remarks:
+        description: 'Reason for triggering the workflow run'
+        required: false
+        default: 'Updating Azure Policies'
+
+
+## Uncomment the following if you wish to automatically trigger workflow run with every commit
+#
+#  push:
+#    paths:
+#      - 'policies/_CUSTOM_Preview_Deploy_Microsoft_Defender_for_Endpoint_agent_on_Windows_virtual_machines_-_wiith_EXCLUSION_TAG_23c9897c-d5e0-4f0b-b224-3f529449a86e/**'
+#      - .github/workflows/manage-azure-policy-be875aaf.yml
+jobs:
+  apply-azure-policy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{secrets.AZURE_CREDENTIALS_be875aaf}}
+        allow-no-subscriptions: true
+    - name: Create or Update Azure Policies
+      uses: azure/manage-azure-policy@v0
+      with:
+        paths: |
+          policies/_CUSTOM_Preview_Deploy_Microsoft_Defender_for_Endpoint_agent_on_Windows_virtual_machines_-_wiith_EXCLUSION_TAG_23c9897c-d5e0-4f0b-b224-3f529449a86e/**
