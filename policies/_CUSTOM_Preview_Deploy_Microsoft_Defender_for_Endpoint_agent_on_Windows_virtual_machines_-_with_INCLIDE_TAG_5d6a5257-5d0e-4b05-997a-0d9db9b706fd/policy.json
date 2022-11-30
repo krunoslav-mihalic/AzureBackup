@@ -1,0 +1,260 @@
+{
+ "properties": {
+  "displayName": "[CUSTOM] [Preview]: Deploy Microsoft Defender for Endpoint agent on Windows virtual machines - with INCLIDE TAG",
+  "policyType": "Custom",
+  "mode": "Indexed",
+  "description": "Deploys Microsoft Defender for Endpoint on applicable Windows VM images, ONLY for VM with SPECIFIC TAG",
+  "metadata": {
+   "category": "Security Center",
+   "createdBy": "8f0439d2-8350-41a5-803e-e77569b6fd18",
+   "createdOn": "2022-11-30T09:28:18.3716429Z",
+   "updatedBy": null,
+   "updatedOn": null
+  },
+  "parameters": {
+   "PublishersToExclude": {
+    "type": "Array",
+    "metadata": {
+     "displayName": "Optional: List Of Image Publishers to exclude",
+     "description": "List of Windows image Publishers to exclude from MDE provision"
+    },
+    "defaultValue": []
+   },
+   "IncludeTagName": {
+    "type": "String",
+    "metadata": {
+     "displayName": "Exclusion Tag Name",
+     "description": "Name of the tag to use for excluding VMs from the scope of this policy. This should be used along with the Exclusion Tag Value parameter. Learn more at https://aka.ms/AppCentricVMBackupPolicy."
+    },
+    "defaultValue": ""
+   },
+   "IncludeTagValue": {
+    "type": "Array",
+    "metadata": {
+     "displayName": "Exclusion Tag Values",
+     "description": "Value of the tag to use for excluding VMs from the scope of this policy (in case of multiple values, use a comma-separated list). This should be used along with the Exclusion Tag Name parameter. Learn more at https://aka.ms/AppCentricVMBackupPolicy."
+    },
+    "defaultValue": []
+   },
+   "ImageIdsToExclude": {
+    "type": "Array",
+    "metadata": {
+     "displayName": "Optional: List of virtual machine images to exclude",
+     "description": "Example value: '/subscriptions/<subscriptionId>/resourceGroups/YourResourceGroup/providers/Microsoft.Compute/images/ContosoImage'"
+    },
+    "defaultValue": []
+   },
+   "effect": {
+    "type": "String",
+    "metadata": {
+     "displayName": "Effect",
+     "description": "Enable or disable the execution of the policy"
+    },
+    "allowedValues": [
+     "DeployIfNotExists",
+     "AuditIfNotExists",
+     "Disabled"
+    ],
+    "defaultValue": "DeployIfNotExists"
+   }
+  },
+  "policyRule": {
+   "if": {
+    "allOf": [
+     {
+      "field": "type",
+      "equals": "Microsoft.Compute/virtualMachines"
+     },
+     {
+      "field": "Microsoft.Compute/virtualMachines/storageProfile.osDisk.osType",
+      "like": "Windows*"
+     },
+     {
+      "anyOf": [
+       {
+        "field": "[concat('tags[', parameters('IncludeTagName'), ']')]",
+        "in": "[parameters('IncludeTagValue')]"
+       },
+       {
+        "value": "[empty(parameters('IncludeTagValue'))]",
+        "equals": "true"
+       },
+       {
+        "value": "[empty(parameters('IncludeTagName'))]",
+        "equals": "true"
+       }
+      ]
+     },
+     {
+      "anyOf": [
+       {
+        "not": {
+         "field": "Microsoft.Compute/virtualMachines/imagePublisher",
+         "in": "[parameters('PublishersToExclude')]"
+        }
+       },
+       {
+        "value": "[empty(parameters('PublishersToExclude'))]",
+        "equals": "true"
+       }
+      ]
+     },
+     {
+      "anyOf": [
+       {
+        "not": {
+         "field": "Microsoft.Compute/virtualMachines/storageProfile.imageReference.id",
+         "in": "[parameters('ImageIdsToExclude')]"
+        }
+       },
+       {
+        "value": "[empty(parameters('ImageIdsToExclude'))]",
+        "equals": "true"
+       }
+      ]
+     },
+     {
+      "anyOf": [
+       {
+        "not": {
+         "anyOf": [
+          {
+           "field": "Microsoft.Compute/imageSKU",
+           "contains": "win7"
+          },
+          {
+           "field": "Microsoft.Compute/imageSKU",
+           "contains": "win8"
+          },
+          {
+           "field": "Microsoft.Compute/imageSKU",
+           "contains": "2008"
+          },
+          {
+           "field": "Microsoft.Compute/imageSKU",
+           "contains": "win10"
+          },
+          {
+           "field": "Microsoft.Compute/imageSKU",
+           "contains": "windows-10"
+          },
+          {
+           "field": "Microsoft.Compute/imageOffer",
+           "contains": "windows-10"
+          },
+          {
+           "field": "Microsoft.Compute/imagePublisher",
+           "equals": "MicrosoftWindowsDesktop"
+          },
+          {
+           "field": "Microsoft.Compute/imagePublisher",
+           "equals": "azureopenshift"
+          },
+          {
+           "field": "Microsoft.Compute/imagePublisher",
+           "equals": "AzureDatabricks"
+          }
+         ]
+        }
+       },
+       {
+        "allOf": [
+         {
+          "field": "Microsoft.Compute/imagePublisher",
+          "equals": "MicrosoftWindowsDesktop"
+         },
+         {
+          "field": "Microsoft.Compute/imageSKU",
+          "contains": "evd"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "then": {
+    "effect": "[parameters('effect')]",
+    "details": {
+     "roleDefinitionIds": [
+      "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+     ],
+     "type": "Microsoft.Compute/virtualMachines/extensions",
+     "name": "MDE.Windows",
+     "existenceCondition": {
+      "allOf": [
+       {
+        "field": "Microsoft.Compute/virtualMachines/extensions/publisher",
+        "equals": "Microsoft.Azure.AzureDefenderForServers"
+       },
+       {
+        "field": "Microsoft.Compute/virtualMachines/extensions/type",
+        "equals": "MDE.Windows"
+       },
+       {
+        "field": "Microsoft.Compute/virtualMachines/extensions/provisioningState",
+        "equals": "Succeeded"
+       }
+      ]
+     },
+     "deployment": {
+      "properties": {
+       "mode": "incremental",
+       "parameters": {
+        "vmName": {
+         "value": "[field('name')]"
+        },
+        "location": {
+         "value": "[field('location')]"
+        },
+        "azureResourceId": {
+         "value": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Compute/virtualMachines/',field('name'))]"
+        }
+       },
+       "template": {
+        "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+         "vmName": {
+          "type": "string"
+         },
+         "location": {
+          "type": "string"
+         },
+         "azureResourceId": {
+          "type": "string"
+         }
+        },
+        "resources": [
+         {
+          "apiVersion": "2020-06-01",
+          "name": "[concat(parameters('vmName'), '/MDE.Windows')]",
+          "type": "Microsoft.Compute/virtualMachines/extensions",
+          "location": "[parameters('location')]",
+          "properties": {
+           "autoUpgradeMinorVersion": true,
+           "publisher": "Microsoft.Azure.AzureDefenderForServers",
+           "type": "MDE.Windows",
+           "typeHandlerVersion": "1.0",
+           "settings": {
+            "azureResourceId": "[parameters('azureResourceId')]",
+            "vNextEnabled": "true",
+            "installedBy": "Policy"
+           },
+           "protectedSettings": {
+            "defenderForEndpointOnboardingScript": "[reference(subscriptionResourceId('Microsoft.Security/mdeOnboardings', 'Windows'), '2021-10-01-preview', 'full').properties.onboardingPackageWindows]"
+           }
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "id": "/subscriptions/955a7cbc-eb63-49fc-8f2f-aea2cea448cf/providers/Microsoft.Authorization/policyDefinitions/5d6a5257-5d0e-4b05-997a-0d9db9b706fd",
+ "type": "Microsoft.Authorization/policyDefinitions",
+ "name": "5d6a5257-5d0e-4b05-997a-0d9db9b706fd"
+}
